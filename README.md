@@ -27,7 +27,7 @@ ColorQ currently supports **macOS only**. It runs outside the Codex app through 
 
 3. Open Hammerspoon, allow the macOS **Accessibility** permission, and choose **Reload Config** from its menu. Hammerspoon requires that permission to inspect windows and handle the palette shortcut. No ChatGPT/Codex setting needs to be changed. [Hammerspoon's setup guide](https://www.hammerspoon.org/go/) covers the permission step.
 
-The installer places the module in `~/.hammerspoon/colorq/` and adds one `require("colorq").start()` line to `~/.hammerspoon/init.lua`. It backs up an existing `init.lua` before changing it and preserves an existing ColorQ `config.json`. If it finds an older ChatGPT window-color module in `init.lua`, it stops so the two overlays cannot run together.
+The installer places the module in `~/.hammerspoon/colorq/` and adds one `require("colorq").start()` line to `~/.hammerspoon/init.lua`. It backs up an existing `init.lua` before changing it and preserves existing color settings. If it finds the standard older ChatGPT window-color module, it copies that module's settings and replaces its startup line. Custom legacy startup code needs to be disabled manually to avoid duplicate overlays.
 
 ## Use
 

@@ -26,10 +26,14 @@ if [ -z "$python_bin" ]; then
   exit 1
 fi
 
-if [ -f "$init_file" ] && grep -Fq 'require("chatgpt-window-colors")' "$init_file"; then
-  echo "An older ChatGPT window color module is active in $init_file." >&2
-  echo "Disable that require line before installing ColorQ to avoid duplicate overlays." >&2
-  exit 1
+legacy_active=false
+if [ -f "$init_file" ] && grep -Fq 'chatgpt-window-colors' "$init_file"; then
+  if ! grep -Eq '^[[:space:]]*require\("chatgpt-window-colors"\)\.start\(\)[[:space:]]*$' "$init_file"; then
+    echo "Found a custom legacy window-color setup in $init_file." >&2
+    echo "Disable it manually before installing ColorQ to avoid duplicate overlays." >&2
+    exit 1
+  fi
+  legacy_active=true
 fi
 
 mkdir -p "$destination"
@@ -37,7 +41,12 @@ install -m 644 "$project_dir/src/colorq/init.lua" "$destination/init.lua"
 install -m 644 "$project_dir/src/colorq/core.lua" "$destination/core.lua"
 install -m 644 "$project_dir/src/colorq/project_lookup.py" "$destination/project_lookup.py"
 if [ ! -f "$destination/config.json" ]; then
-  install -m 644 "$project_dir/config.example.json" "$destination/config.json"
+  legacy_config="$install_home/.hammerspoon/chatgpt-window-colors/config.json"
+  if [ "$legacy_active" = true ] && [ -f "$legacy_config" ]; then
+    install -m 644 "$legacy_config" "$destination/config.json"
+  else
+    install -m 644 "$project_dir/config.example.json" "$destination/config.json"
+  fi
 fi
 "$python_bin" - "$python_bin" "$destination/runtime.json" <<'PY'
 import json
@@ -49,11 +58,30 @@ PY
 
 if [ ! -f "$init_file" ]; then
   printf 'require("colorq").start()\n' > "$init_file"
+elif [ "$legacy_active" = true ]; then
+  cp -p "$init_file" "$init_file.colorq-backup-$(date +%Y%m%d%H%M%S)"
+  "$python_bin" - "$init_file" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+lines = path.read_text().splitlines(keepends=True)
+legacy = 'require("chatgpt-window-colors").start()'
+lines = [
+    '-- Legacy window color module replaced by ColorQ\n'
+    if line.strip() == legacy else line
+    for line in lines
+]
+text = ''.join(lines)
+if 'require("colorq")' not in text:
+    text += '\n-- ColorQ\nrequire("colorq").start()\n'
+path.write_text(text)
+PY
 elif ! grep -Fq 'require("colorq")' "$init_file"; then
   cp -p "$init_file" "$init_file.colorq-backup-$(date +%Y%m%d%H%M%S)"
   printf '\n-- ColorQ\nrequire("colorq").start()\n' >> "$init_file"
 fi
 
 echo "ColorQ installed to $destination"
-echo "Existing config.json was preserved if present."
+echo "Existing color settings were preserved if present."
 echo "Open Hammerspoon and choose Reload Config. Grant Accessibility permission when macOS asks."
