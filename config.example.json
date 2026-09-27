@@ -1,0 +1,14 @@
+{
+  "renderer": "inside",
+  "thickness": 6,
+  "fadeWidth": 12,
+  "lineOpacity": 100,
+  "palette": [
+    "#E06C75", "#D19A66", "#E5C07B", "#98C379",
+    "#56B6C2", "#61AFEF", "#C678DD", "#BE8CFF"
+  ],
+  "chatRules": {},
+  "projectRules": {},
+  "chatProjects": {},
+  "windowChats": {}
+}

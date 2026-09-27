@@ -1,0 +1,16 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.luac
+.pytest_cache/
+.venv/
+runtime.json
+config.json
+AGENTS.md
+CLAUDE.md
+.agents/
+.codex/
+.context/
+verification/
+reports/
+*verification*.html
