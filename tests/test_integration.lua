@@ -13,6 +13,7 @@ local window = {
   id = function() return 99 end,
   title = function() return "ChatGPT" end,
   role = function() return "AXWindow" end,
+  isStandard = function() return true end,
   application = function() return app end,
   isVisible = function() return true end,
   isMinimized = function() return false end,
@@ -23,6 +24,7 @@ local windowB = {
   id = function() return 100 end,
   title = function() return "ChatGPT" end,
   role = function() return "AXWindow" end,
+  isStandard = function() return true end,
   application = function() return app end,
   isVisible = function() return true end,
   isMinimized = function() return false end,
@@ -32,7 +34,20 @@ local windowB = {
 local otherWindow = {
   id = function() return 101 end,
   application = function() return {bundleID = function() return "other" end} end,
+  isStandard = function() return true end,
   frame = function() return {x = 0, y = 0, w = 200, h = 200} end,
+}
+local transparentPopover = {
+  id = function() return 102 end,
+  application = function() return app end,
+  isStandard = function() return false end,
+  frame = function() return {x = 400, y = 125, w = 200, h = 80} end,
+}
+local otherDialog = {
+  id = function() return 103 end,
+  application = function() return {bundleID = function() return "other" end} end,
+  isStandard = function() return false end,
+  frame = function() return {x = 400, y = 125, w = 200, h = 80} end,
 }
 state.windows = {window}
 
@@ -503,6 +518,22 @@ assert(otherClip) -- The other app covers only the overlapping part.
 state.front = true
 state.orderedWindows = {windowB, window}
 state.now = 15
+module.refresh()
+assert(backTop.elements[1].type == "segments")
+state.orderedWindows = {transparentPopover, windowB, window}
+state.now = 16
+module.refresh()
+assert(backTop.elements[1].type == "segments") -- A transparent popover cannot cut the top line.
+state.orderedWindows = {otherDialog, windowB, window}
+state.now = 17.1
+module.refresh()
+local dialogClip = false
+for _, item in ipairs(backTop.elements) do
+  if item.action == "clip" then dialogClip = true end
+end
+assert(dialogClip) -- An opaque dialog from another app still covers it.
+state.orderedWindows = {windowB, window}
+state.now = 18
 local dragTap
 for _, tap in ipairs(state.taps) do
   if #tap.events == 3 and tap.active then dragTap = tap end
@@ -514,7 +545,7 @@ local fastTimerIndex = #state.timers
 assert(state.timerIntervals[fastTimerIndex] <= 1 / 60 + 0.001)
 local dragAxReads = state.axReads
 state.frameB = {x = 170, y = 125, w = 580, h = 460}
-state.now = 15.03
+state.now = 18.03
 dragTap.callback({getType = function() return "leftMouseDragged" end})
 assert(backTop.currentFrame.x ~= 170 + radius) -- Do not block native drag event processing.
 state.timers[6]()
@@ -524,12 +555,12 @@ assert(backTop.currentFrame.x == 170 + radius)
 assert(state.axReads == dragAxReads)
 state.timers[4]() -- A scheduled AX scan must not stall an active drag.
 assert(state.axReads == dragAxReads)
-state.now = 15.5
+state.now = 18.5
 state.timers[fastTimerIndex]()
 state.timers[4]()
 assert(state.axReads > dragAxReads) -- Discovery resumes after motion settles.
 state.frameB = {x = 190, y = 125, w = 580, h = 460}
-state.now = 15.6
+state.now = 18.6
 state.timers[6]() -- Resizing or scripted moves also enable fast tracking.
 assert(backTop.currentFrame.x == 190 + radius)
 assert(state.timerIntervals[#state.timers] <= 1 / 60 + 0.001)

@@ -629,7 +629,8 @@ geometryRefresh = function()
       for _, above in ipairs(orderedWindows) do
         if above:id() == id then found = true; break end
         local application = above:application()
-        if application and application:bundleID() ~= "org.hammerspoon.Hammerspoon" then
+        if application and application:bundleID() ~= "org.hammerspoon.Hammerspoon" and
+            (application:bundleID() ~= BUNDLE_ID or above:isStandard()) then
           local cover = above:frame()
           if cover and cover.w > 0 and cover.h > 0 then
             occluders[#occluders + 1] = cover
