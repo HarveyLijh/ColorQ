@@ -230,7 +230,7 @@ local function isTarget(window)
   if not window or not window:id() then return false end
   local app = window:application()
   return app and app:bundleID() == BUNDLE_ID and window:role() == "AXWindow" and
-    window:title() == "ChatGPT"
+    window:title() == "ChatGPT" and window:isStandard()
 end
 
 local function focusedTarget()

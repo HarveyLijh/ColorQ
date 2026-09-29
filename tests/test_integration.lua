@@ -184,6 +184,21 @@ end
 module.start()
 assert(module.contextFor(window).chat == "Chat A")
 assert(#state.created == 2)
+local transientCodexWindow = {
+  id = function() return 104 end,
+  title = function() return "ChatGPT" end,
+  role = function() return "AXWindow" end,
+  isStandard = function() return false end,
+  application = function() return app end,
+  isVisible = function() return true end,
+  isMinimized = function() return false end,
+  frame = function() return {x = 0, y = 30, w = 830, h = 1050} end,
+  screen = function() return {} end,
+}
+state.windows = {window, transientCodexWindow}
+module.refresh()
+assert(#state.created == 2, "transient Codex windows must not get color overlays")
+state.windows = {window}
 local helperWindow = {
   id = function() return 100 end, title = function() return "Computer Use" end,
   role = function() return "AXWindow" end, application = function() return app end,
