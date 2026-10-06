@@ -598,7 +598,7 @@ local function activateFastGeometry(now)
     else
       geometryRefresh()
     end
-  end)
+  end, true)
 end
 
 geometryRefresh = function()
@@ -1148,11 +1148,16 @@ function M.start()
   hotkeys[#hotkeys + 1] = hs.hotkey.bind({"alt", "cmd"}, "C", function() openPanel(nil, "chat") end)
   hotkeys[#hotkeys + 1] = hs.hotkey.bind({"alt", "cmd"}, "P", function() openPanel(nil, "project") end)
   hotkeys[#hotkeys + 1] = hs.hotkey.bind({"alt", "cmd"}, "0", function() clearRule("chat") end)
-  timer = hs.timer.doEvery(1.2, scheduledRefresh)
-  hoverTimer = hs.timer.doEvery(0.12, hoverRefresh)
+  -- Native AX/window-order queries can throw while windows disappear. Keep
+  -- polling so one transient error cannot freeze floating overlays indefinitely.
+  timer = hs.timer.doEvery(1.2, scheduledRefresh, true)
+  hoverTimer = hs.timer.doEvery(0.12, hoverRefresh, true)
   geometryTimer = hs.timer.doEvery(0.15, function()
+    if fastGeometryTimer and not fastGeometryTimer:running() then
+      fastGeometryTimer = nil
+    end
     if not fastGeometryTimer then geometryRefresh() end
-  end)
+  end, true)
   dragTap = hs.eventtap.new({hs.eventtap.event.types.leftMouseDown,
     hs.eventtap.event.types.leftMouseDragged, hs.eventtap.event.types.leftMouseUp},
     function(event)

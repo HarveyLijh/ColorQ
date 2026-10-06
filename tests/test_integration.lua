@@ -87,7 +87,10 @@ _G.hs = {
     if state.useNoFocus then return nil end
     return state.focused or window
   end, get = function(id) return id == 100 and windowB or window end,
-    orderedWindows = function() return state.orderedWindows or {window} end},
+    orderedWindows = function()
+      if state.failWindowOrder then error("window order temporarily unavailable") end
+      return state.orderedWindows or {window}
+    end},
   axuielement = {windowElement = function()
     state.axReads = (state.axReads or 0) + 1
     if state.axRoot then return state.axRoot end
@@ -118,11 +121,17 @@ _G.hs = {
       state.delayed[#state.delayed + 1] = callback
       return {stop = function() end}
     end,
-    doEvery = function(interval, callback)
+    doEvery = function(interval, callback, continueOnError)
     state.timers[#state.timers + 1] = callback
     state.timerIntervals[#state.timerIntervals + 1] = interval
     local result = {stop = function(self) self.active = false end,
-      callback = callback, active = true}
+      callback = callback, active = true, continueOnError = continueOnError}
+    function result:running() return self.active end
+    function result:fire()
+      if not self.active then return end
+      local ok = pcall(self.callback)
+      if not ok and not self.continueOnError then self.active = false end
+    end
     state.timerObjects[#state.timerObjects + 1] = result
     return result
   end},
@@ -540,7 +549,7 @@ state.now = 16
 module.refresh()
 assert(backTop.elements[1].type == "segments") -- A transparent popover cannot cut the top line.
 state.orderedWindows = {otherDialog, windowB, window}
-state.now = 17.1
+state.now = 17
 module.refresh()
 local dialogClip = false
 for _, item in ipairs(backTop.elements) do
@@ -549,6 +558,8 @@ end
 assert(dialogClip) -- An opaque dialog from another app still covers it.
 state.orderedWindows = {windowB, window}
 state.now = 18
+module.refresh()
+assert(backTop.elements[1].type == "segments")
 local dragTap
 for _, tap in ipairs(state.taps) do
   if #tap.events == 3 and tap.active then dragTap = tap end
@@ -558,9 +569,35 @@ dragTap.callback({getType = function() return "leftMouseDown" end,
   location = function() return {x = 200, y = 130} end})
 local fastTimerIndex = #state.timers
 assert(state.timerIntervals[fastTimerIndex] <= 1 / 60 + 0.001)
+-- A transient native window-order exception must not freeze overlap masking.
+state.failWindowOrder = true
+state.orderedWindows = {otherWindow, windowB, window}
+state.front = false
+state.now = 18.02
+state.timerObjects[fastTimerIndex]:fire()
+state.now = 18.26
+state.timerObjects[4]:fire() -- Discovery can encounter the same native error.
+state.failWindowOrder = false
+state.now = 18.3
+state.timerObjects[fastTimerIndex]:fire()
+state.timerObjects[6]:fire()
+state.timerObjects[4]:fire()
+local recoveredClip = false
+for _, item in ipairs(backTop.elements) do
+  if item.action == "clip" then recoveredClip = true end
+end
+assert(recoveredClip, "overlap masking must recover after a native window-order error")
+assert(state.timerObjects[4]:running(), "chat discovery must recover after a native error")
+state.front = true
+state.orderedWindows = {windowB, window}
+state.now = 18.4
+module.refresh()
+dragTap.callback({getType = function() return "leftMouseDown" end,
+  location = function() return {x = 200, y = 130} end})
+fastTimerIndex = #state.timers
 local dragAxReads = state.axReads
 state.frameB = {x = 170, y = 125, w = 580, h = 460}
-state.now = 18.03
+state.now = 18.43
 dragTap.callback({getType = function() return "leftMouseDragged" end})
 assert(backTop.currentFrame.x ~= 170 + radius) -- Do not block native drag event processing.
 state.timers[6]()
@@ -570,15 +607,25 @@ assert(backTop.currentFrame.x == 170 + radius)
 assert(state.axReads == dragAxReads)
 state.timers[4]() -- A scheduled AX scan must not stall an active drag.
 assert(state.axReads == dragAxReads)
-state.now = 18.5
+state.now = 18.8
 state.timers[fastTimerIndex]()
 state.timers[4]()
 assert(state.axReads > dragAxReads) -- Discovery resumes after motion settles.
 state.frameB = {x = 190, y = 125, w = 580, h = 460}
-state.now = 18.6
+state.now = 18.9
 state.timers[6]() -- Resizing or scripted moves also enable fast tracking.
 assert(backTop.currentFrame.x == 190 + radius)
 assert(state.timerIntervals[#state.timers] <= 1 / 60 + 0.001)
+-- A stopped fast timer must release the normal geometry updater.
+state.timerObjects[#state.timers]:stop()
+state.front = false
+state.orderedWindows = {otherWindow, windowB, window}
+state.now = 19.2
+state.timerObjects[6]:fire()
+assert(state.created[beforeOverlap + 2].elements[1].action == "clip",
+  "a stopped fast timer must not suppress normal overlap updates")
+state.front = true
+state.orderedWindows = {windowB, window}
 state.lookupEnabled = true
 state.axRoot = axNode({AXRole = "AXWindow"}, {header("Example chat")})
 state.config.chatProjects["Example chat"] = "Wrong project"
